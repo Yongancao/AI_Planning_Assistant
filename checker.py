@@ -1,3 +1,5 @@
+from validation import validate_plan_structure
+
 def format_time(minutes):
     """Convert minutes after midnight into HH:MM."""
     hours, remaining_minutes = divmod(minutes, 60)
@@ -221,3 +223,51 @@ def check_dependencies(problem, plan):
                 })
 
     return errors
+
+def check_plan(problem, plan):
+    """Check a candidate plan against trusted problem requirements."""
+
+    # Stop before other checks if the plan's structure is invalid.
+    structure_errors = validate_plan_structure(plan)
+
+    if structure_errors:
+        return {
+            "valid": False,
+            "status": "invalid_input",
+            "errors": structure_errors,
+        }
+
+    errors = []
+
+    errors.extend(check_task_coverage(problem, plan))
+    errors.extend(check_task_times(problem, plan))
+
+    # Only compare intervals with valid time ranges.
+    valid_intervals = [
+        action
+        for action in plan
+        if 0 <= action["start"] < action["end"] <= 1440
+    ]
+
+    overlap_errors = check_overlaps(valid_intervals)
+
+    # Give overlaps a message, just like the other errors.
+    for error in overlap_errors:
+        first, second = error["tasks"]
+
+        error["message"] = (
+            f"Tasks '{first}' and '{second}' overlap "
+            f"from {format_time(error['start'])} "
+            f"to {format_time(error['end'])} "
+            f"({error['minutes']} minutes)."
+        )
+
+    errors.extend(overlap_errors)
+    errors.extend(check_availability_and_deadlines(problem, plan))
+    errors.extend(check_dependencies(problem, plan))
+
+    return {
+        "valid": len(errors) == 0,
+        "status": "passed" if not errors else "violations_found",
+        "errors": errors,
+    }

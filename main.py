@@ -1,63 +1,32 @@
 from example_problem import problem, candidate_plan
-from validation import validate_plan_structure
-from checker import (
-    check_overlaps,
-    check_task_coverage,
-    check_task_times,
-    check_availability_and_deadlines,
-    check_dependencies,
-    format_time,
-)
+from checker import check_plan, format_time
 
 
 def main():
     print("AI Planning Assistant")
 
-    structure_errors = validate_plan_structure(candidate_plan)
+    result = check_plan(problem, candidate_plan)
 
-    if structure_errors:
-        print("\nInput validation failed:")
-        for error in structure_errors:
-            print(f"- {error['message']}")
-        return
-
-    print("\nCandidate plan:")
-    for action in candidate_plan:
-        start = format_time(action["start"])
-        end = format_time(action["end"])
-        print(f"- {action['task_id']}: {start}-{end}")
-
-    print("\nOverlap check:")
-    overlap_errors = check_overlaps(candidate_plan)
-
-    if overlap_errors:
-        for error in overlap_errors:
-            first, second = error["tasks"]
-            print(
-                f"- {first} and {second} overlap "
-                f"from {format_time(error['start'])} "
-                f"to {format_time(error['end'])} "
-                f"({error['minutes']} minutes)."
-            )
+    if result["status"] == "invalid_input":
+        print("\nCannot check plan: invalid input.")
     else:
-        print("No overlaps found.")
+        print("\nCandidate plan:")
 
-    checks = [
-        ("Task coverage", check_task_coverage),
-        ("Time and duration", check_task_times),
-        ("Availability and deadlines", check_availability_and_deadlines),
-        ("Dependencies", check_dependencies),
-    ]
+        for action in candidate_plan:
+            start = format_time(action["start"])
+            end = format_time(action["end"])
 
-    for label, check_function in checks:
-        print(f"\n{label} check:")
-        errors = check_function(problem, candidate_plan)
+            print(f"- {action['task_id']}: {start}-{end}")
 
-        if errors:
-            for error in errors:
-                print(f"- {error['message']}")
+        print("\nChecker result:")
+
+        if result["valid"]:
+            print("PASS: All implemented constraints are satisfied.")
         else:
-            print("No violations found.")
+            print(f"FAIL: Found {len(result['errors'])} violation(s).")
+
+    for error in result["errors"]:
+        print(f"- [{error['type']}] {error['message']}")
 
 
 if __name__ == "__main__":
