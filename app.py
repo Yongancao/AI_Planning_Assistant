@@ -1,8 +1,10 @@
 import time
+from copy import deepcopy
+from datetime import time as clock_time
 
 import streamlit as st
 
-from example_problem import problem
+from example_problem import problem as example_problem
 from checker import check_plan, format_time
 from llm_planner import generate_plan
 
@@ -18,9 +20,48 @@ st.write(
     "and revise it using symbolic feedback."
 )
 
-st.subheader("Task requirements")
-st.caption("This prototype uses the example problem saved in your project.")
+def clear_results():
+    """Remove results when the requirements change."""
+    st.session_state.attempts = []
+    st.session_state.run_error = None
 
+
+problem = deepcopy(example_problem)
+
+st.subheader("Your available hours")
+st.caption("Choose a start and end time within the same day.")
+
+left, right = st.columns(2)
+
+with left:
+    start_time = st.time_input(
+        "Available from",
+        value=clock_time(13, 0),
+        key="available_from",
+        on_change=clear_results,
+    )
+
+with right:
+    end_time = st.time_input(
+        "Available until",
+        value=clock_time(18, 0),
+        key="available_until",
+        on_change=clear_results,
+    )
+
+if start_time is None or end_time is None:
+    st.warning("Select both a start and an end time.")
+    st.stop()
+
+problem["available_start"] = start_time.hour * 60 + start_time.minute
+problem["available_end"] = end_time.hour * 60 + end_time.minute
+
+if problem["available_end"] <= problem["available_start"]:
+    st.error("The end time must be later than the start time.")
+    st.stop()
+
+st.subheader("Task requirements")
+st.caption("Tasks are still loaded from the example problem.")
 st.write(
     f"Available hours: "
     f"{format_time(problem['available_start'])} - "
