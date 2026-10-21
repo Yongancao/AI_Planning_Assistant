@@ -1,16 +1,24 @@
-from example_problem import problem, candidate_plan
+from example_problem import problem
+from llm_planner import generate_plan
 from checker import check_plan, format_time
 
 
 def main():
     print("AI Planning Assistant")
+    print("\nAsking Gemini to generate a schedule...")
+
+    try:
+        candidate_plan = generate_plan(problem)
+    except ValueError as error:
+        print(f"\nGeneration failed: {error}")
+        return
 
     result = check_plan(problem, candidate_plan)
 
     if result["status"] == "invalid_input":
-        print("\nCannot check plan: invalid input.")
+        print("\nGemini returned a plan with an invalid structure.")
     else:
-        print("\nCandidate plan:")
+        print("\nLLM-generated plan:")
 
         for action in candidate_plan:
             start = format_time(action["start"])
