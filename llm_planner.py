@@ -7,7 +7,7 @@ from google import genai
 import time
 
 
-def generate_plan(problem):
+def generate_plan(problem, previous_plan=None, feedback=None):
     """Ask Gemini to generate a schedule from the requirements."""
     env_path = Path(__file__).resolve().parent / ".env"
     load_dotenv(env_path)
@@ -43,11 +43,23 @@ Each entry must have exactly these fields:
 Problem requirements:
 """
     print(f"Using model: {model}")
+    request_text = prompt + json.dumps(problem, indent=2)
+
+    if previous_plan is not None and feedback is not None:
+        request_text += (
+            "\n\nYour previous candidate plan:\n"
+            + json.dumps(previous_plan, indent=2)
+            + "\n\nErrors reported by the checker:\n"
+            + json.dumps(feedback, indent=2)
+            + "\n\nReturn a revised COMPLETE schedule that fixes these errors."
+            + "\nKeep the original requirements unchanged."
+            + "\nReturn only the JSON array."
+        )
     request_start = time.perf_counter()
 
     response = client.interactions.create(
         model=model,
-        input=prompt + json.dumps(problem, indent=2),
+        input=request_text,
         generation_config={
             "thinking_level": "low",
         },
