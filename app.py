@@ -1,6 +1,7 @@
 import time
 from copy import deepcopy
 from datetime import time as clock_time
+from task_inputs import read_task_rows
 
 import streamlit as st
 
@@ -61,27 +62,69 @@ if problem["available_end"] <= problem["available_start"]:
     st.stop()
 
 st.subheader("Task requirements")
-st.caption("Tasks are still loaded from the example problem.")
-st.write(
-    f"Available hours: "
-    f"{format_time(problem['available_start'])} - "
-    f"{format_time(problem['available_end'])}"
+st.caption(
+    "Edit cells directly. Add or delete rows using the table controls. "
+    "Deadlines use 24-hour HH:MM format; leave blank for no deadline. "
+    "In 'Must follow', enter exact task names separated by commas."
 )
 
 task_rows = []
-for task in problem["tasks"]:
+
+for task in example_problem["tasks"]:
     deadline = task.get("deadline")
 
     task_rows.append({
         "Task": task["id"],
         "Required minutes": task["duration_minutes"],
         "Deadline": (
-            format_time(deadline) if deadline is not None else "None"
+            format_time(deadline) if deadline is not None else ""
         ),
-        "Must follow": ", ".join(task.get("depends_on", [])) or "None",
+        "Must follow": ", ".join(task.get("depends_on", [])),
     })
 
-st.dataframe(task_rows, hide_index=True)
+edited_rows = st.data_editor(
+    task_rows,
+    hide_index=True,
+    num_rows="dynamic",
+    key="task_editor",
+    on_change=clear_results,
+    column_config={
+        "Task": st.column_config.TextColumn(
+            "Task",
+            help="Use a unique name for each task.",
+        ),
+        "Required minutes": st.column_config.NumberColumn(
+            "Required minutes",
+            min_value=1,
+            max_value=1440,
+            step=1,
+            format="%d",
+        ),
+        "Deadline": st.column_config.TextColumn(
+            "Deadline",
+            help="Example: 16:00. Leave blank for no deadline.",
+        ),
+        "Must follow": st.column_config.TextColumn(
+            "Must follow",
+            help="Example: groceries, review_notes",
+        ),
+    },
+)
+
+tasks, input_errors = read_task_rows(edited_rows)
+
+if input_errors:
+    for error in input_errors:
+        st.error(error)
+    st.stop()
+
+problem["tasks"] = tasks
+
+st.write(
+    f"Available hours: "
+    f"{format_time(problem['available_start'])} - "
+    f"{format_time(problem['available_end'])}"
+)
 
 max_revisions = st.selectbox(
     "Maximum revisions after the initial plan",
